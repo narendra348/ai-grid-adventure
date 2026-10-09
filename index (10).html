@@ -1,0 +1,447 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Grid Adventure</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;color:#222;background:#fff;font:15px Arial,sans-serif}
+button{cursor:pointer;font:inherit;border:1px solid #ccc;border-radius:4px;padding:9px 12px;background:#f5f5f5;color:#222}
+button:hover{background:#e8e8e8}
+button:focus-visible{outline:2px solid #2878d0;outline-offset:2px}
+.primary{background:#2878d0;color:#fff;border-color:#2878d0}
+.primary:hover{background:#1d65b5}
+header{text-align:center;padding:10px;border-bottom:1px solid #ddd}
+.brand{font-size:24px;font-weight:bold}
+.brand span{color:#2878d0}
+header p{font-size:13px;color:#555;margin:5px 0 0}
+main{width:min(1100px,100%);margin:auto;padding:10px 14px 18px}
+.panel{border:1px solid #d5d5d5;border-radius:4px;padding:13px;background:#fff}
+.hidden{display:none!important}
+.muted{color:#666}
+.section-title{font-size:21px;margin:0 0 6px}
+.stage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}
+.stage-card{min-height:130px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;padding:14px;background:#fff}
+.stage-card strong{font-size:18px}
+.stage-card small{color:#555}
+.stage-card .emoji{font-size:22px}
+.stage-card .size{margin-top:auto;color:#2878d0;font-weight:bold}
+.howto{margin-top:14px;padding:11px;background:#fafafa;border:1px solid #ddd;line-height:1.6}
+.game-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.game-top h2{font-size:20px;margin:0 0 4px}
+.top-actions{display:flex;gap:6px;flex-wrap:wrap}
+#restart-btn{background:#fff0d6;color:#813d00;border:2px solid #e68a00;font-weight:bold}
+#restart-btn:hover{background:#ffdfad}
+#back-btn{background:#eee;border:2px solid #555;font-weight:bold}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:10px}
+.stat{padding:6px 9px;background:#fafafa;border:1px solid #ddd;border-radius:3px}
+.stat span{display:block;font-size:12px;color:#666}
+.stat strong{font-size:18px}
+.play-layout{display:grid;grid-template-columns:minmax(0,1fr) 165px;gap:12px;align-items:start}
+.board-wrap{border:1px solid #ccc;border-radius:3px;padding:4px;min-width:0}
+.board{display:grid;gap:2px;width:min(100%,420px);aspect-ratio:1/1;margin:auto}
+.cell{display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;aspect-ratio:1/1;overflow:hidden;background:#fff;border:1px solid #d1d9e2;font-size:clamp(8px,1.4vw,17px);user-select:none}
+.cell.wall{background:#555;border-color:#555}
+.cell.goal{background:#fff4bf;border-color:#e5c34b}
+.cell.coin{background:#fff9df;border-color:#ead68a}
+.cell.player{background:#dff3df;border-color:#69b56b}
+.cell.ai{background:#f9dddd;border-color:#d66}
+.cell.path{background:#dce9fb}
+.controls{display:flex;flex-direction:column;gap:10px}
+.control-card{border:1px solid #d5d5d5;border-radius:3px;padding:10px}
+.control-card h3{font-size:16px;margin:0 0 10px}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:145px;margin:auto}
+.dpad button{padding:4px 0;min-height:38px;font-size:21px;touch-action:manipulation}
+.blank{visibility:hidden}
+.legend{display:grid;gap:7px;font-size:14px}
+.legend div{display:flex;align-items:center;gap:8px}
+.dot{width:15px;height:15px;border:1px solid #bbb;flex-shrink:0}
+.you-dot{background:#dff3df}.ai-dot{background:#f9dddd}
+.goal-dot{background:#fff4bf}.wall-dot{background:#555}
+.path-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:#555;margin-top:7px}
+.path-toggle input{width:16px;height:16px}
+.status{font-size:13px;padding:8px 10px;margin-top:8px;border:1px solid #cbdcf2;background:#f1f6fc;color:#234d7b}
+footer{text-align:center;color:#777;font-size:12px;margin-top:12px}
+
+/* Center-screen result */
+#result-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:18px}
+.result-box{width:min(380px,100%);padding:25px 20px;background:#fff;border-radius:10px;text-align:center;box-shadow:0 12px 45px #0005;border:3px solid #ddd}
+.result-box.win{border-color:#48a65c}
+.result-box.lose{border-color:#e34b4b}
+.result-emoji{font-size:42px}
+.result-heading{font-size:30px;font-weight:bold;margin:8px 0}
+.result-message{color:#555;line-height:1.5;margin:10px 0 18px}
+.result-box button{margin:4px}
+.result-box .primary{font-weight:bold;padding:11px 17px}
+@media(min-width:900px){
+ .play-layout{grid-template-columns:minmax(0,1fr) 165px}
+ .board{width:min(100%,420px)}
+}
+@media(max-width:650px){
+ main{padding:8px}
+ .panel{padding:9px}
+ .stage-grid{grid-template-columns:1fr}
+ .stage-card{min-height:0}
+ .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .play-layout{grid-template-columns:minmax(0,1fr)}
+ .board{width:min(100%,340px)}
+ .controls{display:grid;grid-template-columns:1fr 1fr}
+ .game-top{align-items:flex-start}
+}
+@media(max-width:420px){
+ .controls{grid-template-columns:1fr}
+ .top-actions button{font-size:12px;padding:8px}
+ .brand{font-size:22px}
+ .result-heading{font-size:26px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">AI Grid <span>Adventure</span></div>
+  <p>Find the goal, collect coins, and avoid the AI.</p>
+</header>
+
+<main>
+<section id="home-screen" class="panel">
+  <h2 class="section-title">Choose your challenge</h2>
+  <p class="muted">Select a difficulty to start playing.</p>
+  <div class="stage-grid">
+    <button class="stage-card" data-stage="easy">
+      <span class="emoji">🌱</span><strong>Easy</strong>
+      <small>Small beginner-friendly maze</small><span class="size">4 × 4 grid</span>
+    </button>
+    <button class="stage-card" data-stage="hard">
+      <span class="emoji">🧭</span><strong>Hard</strong>
+      <small>More walls and escape routes</small><span class="size">8 × 8 grid</span>
+    </button>
+    <button class="stage-card" data-stage="expert">
+      <span class="emoji">⚡</span><strong>Expert</strong>
+      <small>A bigger challenge</small><span class="size">12 × 12 grid</span>
+    </button>
+  </div>
+  <div class="howto">
+    <strong>How to play:</strong> Use arrow keys, WASD, or the direction buttons.
+    Collect coins for 10 points each and reach ⭐ to win. Avoid the AI!
+  </div>
+</section>
+
+<section id="game-screen" class="panel hidden">
+  <div class="game-top">
+    <div>
+      <h2 id="game-title">Hard · 8 × 8</h2>
+      <div class="muted" id="map-name">Map 1</div>
+    </div>
+    <div class="top-actions">
+      <button id="back-btn">← Back to Home</button>
+      <button id="stages-btn">Stages</button>
+      <button id="restart-btn">↻ Restart</button>
+      <button id="new-btn" class="primary">＋ New Game</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span>Score</span><strong id="score">0</strong></div>
+    <div class="stat"><span>Moves</span><strong id="moves">0</strong></div>
+    <div class="stat"><span>Coins left</span><strong id="coins-left">0</strong></div>
+    <div class="stat"><span>AI path length</span><strong id="path-length">—</strong></div>
+  </div>
+
+  <div class="play-layout">
+    <div>
+      <div class="board-wrap"><div id="board" class="board" role="grid" aria-label="Game board"></div></div>
+      <label class="path-toggle"><input id="show-path" type="checkbox"> Show AI's calculated path</label>
+      <div id="status" class="status" role="status" aria-live="polite">Your turn. Reach the goal!</div>
+    </div>
+    <aside class="controls">
+      <div class="control-card">
+        <h3>Move player</h3>
+        <div class="dpad">
+          <span class="blank"></span><button data-move="up" aria-label="Up">↑</button><span class="blank"></span>
+          <button data-move="left" aria-label="Left">←</button>
+          <button data-move="down" aria-label="Down">↓</button>
+          <button data-move="right" aria-label="Right">→</button>
+        </div>
+        <p class="muted" style="text-align:center;font-size:12px;margin-bottom:0">Arrow keys / WASD</p>
+      </div>
+      <div class="control-card">
+        <h3>Legend</h3>
+        <div class="legend">
+          <div><span class="dot you-dot"></span>You</div>
+          <div><span class="dot ai-dot"></span>AI opponent</div>
+          <div><span class="dot goal-dot"></span>Goal</div>
+          <div><span class="dot wall-dot"></span>Wall</div>
+          <div>🟡 Coin = +10 points</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+<footer>AI Grid Adventure · A* pathfinding</footer>
+</main>
+
+<div id="result-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="result-heading">
+  <div id="result-box" class="result-box">
+    <div id="result-emoji" class="result-emoji">🎉</div>
+    <div id="result-heading" class="result-heading">YOU WIN!</div>
+    <div id="result-message" class="result-message">Click Restart for next game.</div>
+    <button id="result-restart" class="primary">↻ Restart</button>
+    <button id="result-home">← Back to Home</button>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const $ = id => document.getElementById(id);
+const homeScreen=$("home-screen"), gameScreen=$("game-screen");
+const boardEl=$("board"), overlay=$("result-overlay");
+
+const stages={
+  easy:{name:"Easy",size:4},
+  hard:{name:"Hard",size:8},
+  expert:{name:"Expert",size:12}
+};
+
+let stage="hard",size=8,walls=new Set();
+let player=null,ai=null,goal=null,coins=[];
+let score=0,moves=0,mapNumber=0,gameOver=false,aiPath=[];
+let previousSignature="";
+
+const key=(x,y)=>`${x},${y}`;
+const same=(a,b)=>a.x===b.x&&a.y===b.y;
+const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+const directions=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+
+function createWalls(){
+  walls=new Set();
+  const pattern=[
+    [4,0],[0,1],[1,1],[4,1],[1,3],[5,3],[6,3],
+    [3,5],[4,5],[2,6],[7,6],[8,2],[9,2],
+    [2,8],[3,8],[7,9],[8,9],[5,10],[10,5]
+  ];
+  for(const [x,y] of pattern){
+    if(x<size&&y<size)walls.add(key(x,y));
+  }
+  if(size===4)walls.clear();
+}
+function walkable(x,y){
+  return x>=0&&y>=0&&x<size&&y<size&&!walls.has(key(x,y));
+}
+function neighbours(p){
+  return directions.map(d=>({x:p.x+d.x,y:p.y+d.y}))
+    .filter(p=>walkable(p.x,p.y));
+}
+
+// A* pathfinding using Manhattan distance.
+function findPath(start,end){
+  const sk=key(start.x,start.y),ek=key(end.x,end.y);
+  const open=[start],came=new Map();
+  const g=new Map([[sk,0]]);
+  const f=new Map([[sk,distance(start,end)]]);
+  const closed=new Set();
+
+  while(open.length){
+    open.sort((a,b)=>(f.get(key(a.x,a.y))??Infinity)-(f.get(key(b.x,b.y))??Infinity));
+    const cur=open.shift(),ck=key(cur.x,cur.y);
+
+    if(ck===ek){
+      const path=[cur];let cursor=ck;
+      while(came.has(cursor)){
+        cursor=came.get(cursor);
+        const [x,y]=cursor.split(",").map(Number);
+        path.unshift({x,y});
+      }
+      return path;
+    }
+    if(closed.has(ck))continue;
+    closed.add(ck);
+
+    for(const n of neighbours(cur)){
+      const nk=key(n.x,n.y);
+      if(closed.has(nk))continue;
+      const tentative=(g.get(ck)??Infinity)+1;
+      if(tentative<(g.get(nk)??Infinity)){
+        came.set(nk,ck);g.set(nk,tentative);
+        f.set(nk,tentative+distance(n,end));
+        if(!open.some(p=>key(p.x,p.y)===nk))open.push(n);
+      }
+    }
+  }
+  return null;
+}
+
+function randomCell(used){
+  const cells=[];
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const k=key(x,y);
+    if(!walls.has(k)&&!used.has(k))cells.push({x,y});
+  }
+  return cells.length?cells[Math.floor(Math.random()*cells.length)]:null;
+}
+
+function generatePositions(){
+  for(let tries=0;tries<1000;tries++){
+    const used=new Set();
+    const p=randomCell(used);if(!p)continue;
+    used.add(key(p.x,p.y));
+    const a=randomCell(used);if(!a)continue;
+    used.add(key(a.x,a.y));
+    const g=randomCell(used);if(!g)continue;
+    used.add(key(g.x,g.y));
+    if(!findPath(p,g)||!findPath(a,p))continue;
+
+    const newCoins=[],count=size===4?1:size===8?3:5;
+    for(let i=0;i<count;i++){
+      const c=randomCell(used);
+      if(c){newCoins.push(c);used.add(key(c.x,c.y));}
+    }
+
+    const signature=JSON.stringify({p,a,g,newCoins});
+    if(signature===previousSignature)continue;
+    previousSignature=signature;
+    player=p;ai=a;goal=g;coins=newCoins;
+    return;
+  }
+  walls.clear();
+  player={x:0,y:0};ai={x:size-1,y:size-1};
+  goal={x:size-1,y:0};
+  coins=[{x:Math.floor(size/2),y:Math.floor(size/2)}];
+}
+
+function setStatus(message){$("status").textContent=message;}
+
+function startGame(){
+  overlay.classList.add("hidden");
+  gameOver=false;
+  createWalls();
+  generatePositions();
+  score=0;moves=0;mapNumber++;
+  aiPath=findPath(ai,player)||[];
+  $("game-title").textContent=`${stages[stage].name} · ${size} × ${size}`;
+  $("map-name").textContent=`Map ${mapNumber}`;
+  $("status").className="status";
+  setStatus("Your turn. Collect coins and reach ⭐!");
+  render();
+}
+
+function render(){
+  boardEl.innerHTML="";
+  boardEl.style.gridTemplateColumns=`repeat(${size},minmax(0,1fr))`;
+  const coinSet=new Set(coins.map(c=>key(c.x,c.y)));
+  const pathSet=new Set($("show-path").checked?aiPath.map(p=>key(p.x,p.y)):[]);
+
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const k=key(x,y),cell=document.createElement("div");
+    cell.className="cell";cell.setAttribute("role","gridcell");
+    if(walls.has(k))cell.classList.add("wall");
+    else if(same(player,{x,y})){cell.classList.add("player");cell.textContent="🧑";}
+    else if(same(ai,{x,y})){cell.classList.add("ai");cell.textContent="🤖";}
+    else if(same(goal,{x,y})){cell.classList.add("goal");cell.textContent="⭐";}
+    else if(coinSet.has(k)){cell.classList.add("coin");cell.textContent="🟡";}
+    else if(pathSet.has(k))cell.classList.add("path");
+    boardEl.appendChild(cell);
+  }
+
+  $("score").textContent=score;
+  $("moves").textContent=moves;
+  $("coins-left").textContent=coins.length;
+  $("path-length").textContent=aiPath.length?aiPath.length-1:"—";
+}
+
+function finish(won){
+  gameOver=true;
+  if(won)score+=50;
+  $("result-box").className="result-box "+(won?"win":"lose");
+  $("result-emoji").textContent=won?"🎉":"😢";
+  $("result-heading").textContent=won?"YOU WIN!":"YOU LOSE!";
+  $("result-message").textContent=won
+    ?"You reached the goal! Click Restart for next game."
+    :"The AI caught you! Click Restart for next game.";
+  render();
+  overlay.classList.remove("hidden");
+  $("result-restart").focus();
+}
+
+function movePlayer(dx,dy){
+  if(gameOver||!player)return;
+  const next={x:player.x+dx,y:player.y+dy};
+
+  if(!walkable(next.x,next.y)){
+    setStatus("You cannot move through a wall or outside the grid.");
+    return;
+  }
+
+  player=next;moves++;
+  const ci=coins.findIndex(c=>same(c,player));
+  if(ci!==-1){coins.splice(ci,1);score+=10;}
+
+  if(same(player,goal)){finish(true);return;}
+  if(same(player,ai)){finish(false);return;}
+
+  aiPath=findPath(ai,player)||[];
+  if(aiPath.length>1)ai=aiPath[1];
+  if(same(ai,player)){finish(false);return;}
+
+  aiPath=findPath(ai,player)||[];
+  $("status").className="status";
+  setStatus(ci!==-1?"Coin collected! +10 points.":"Your turn. Avoid the AI!");
+  render();
+}
+
+function showHome(){
+  overlay.classList.add("hidden");
+  gameScreen.classList.add("hidden");
+  homeScreen.classList.remove("hidden");
+}
+
+document.querySelectorAll("[data-stage]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    stage=button.dataset.stage;
+    size=stages[stage].size;
+    homeScreen.classList.add("hidden");
+    gameScreen.classList.remove("hidden");
+    $("show-path").checked=false;
+    startGame();
+  });
+});
+
+$("restart-btn").addEventListener("click",startGame);
+$("new-btn").addEventListener("click",startGame);
+$("result-restart").addEventListener("click",startGame);
+$("back-btn").addEventListener("click",showHome);
+$("result-home").addEventListener("click",showHome);
+$("stages-btn").addEventListener("click",showHome);
+
+document.querySelectorAll("[data-move]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    const map={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+    const d=map[button.dataset.move];
+    movePlayer(d[0],d[1]);
+  });
+});
+
+document.addEventListener("keydown",event=>{
+  if(gameScreen.classList.contains("hidden")||!overlay.classList.contains("hidden"))return;
+  if(event.altKey||event.ctrlKey||event.metaKey)return;
+  if(event.target&&["INPUT","TEXTAREA","SELECT"].includes(event.target.tagName))return;
+  const map={
+    ArrowUp:[0,-1],w:[0,-1],W:[0,-1],
+    ArrowDown:[0,1],s:[0,1],S:[0,1],
+    ArrowLeft:[-1,0],a:[-1,0],A:[-1,0],
+    ArrowRight:[1,0],d:[1,0],D:[1,0]
+  };
+  if(map[event.key]){
+    event.preventDefault();
+    movePlayer(map[event.key][0],map[event.key][1]);
+  }
+});
+
+$("show-path").addEventListener("change",render);
+})();
+</script>
+</body>
+</html>
